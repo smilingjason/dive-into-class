@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <errno.h>
 
@@ -42,7 +43,60 @@ main(int argc, char * argv[])
     dump(cons_pool_count, 2);
 
     unsigned short cs_count = cons_pool_count[0] * 16 + cons_pool_count[1];
-    Const_Pool_Entry cs_entries[cs_count];
+    Const_Pool_Entry cs_entries[cs_count + 1];
+    int cs_index = 1;
+    for (cs_index = 1; cs_index < cs_count ; cs_index++) 
+    {
+        fread(&cs_entries[cs_index].tag, 1, 1, classFile);
+        switch (cs_entries[cs_index].tag) 
+        {
+            case 7: // class info
+                cs_entries[cs_index].info.class_info.class_index = readindex(classFile);
+                break;
+            case 9: // field ref
+                cs_entries[cs_index].info.fieldref_info.class_index = readindex(classFile);
+                cs_entries[cs_index].info.fieldref_info.name_and_type_index = readindex(classFile);
+                break;
+            case 10: // method ref
+                cs_entries[cs_index].info.methodref_info.class_index = readindex(classFile);
+                cs_entries[cs_index].info.methodref_info.name_and_type_index = readindex(classFile);
+                break;
+            case 11: // interface method ref
+                cs_entries[cs_index].info.interfacemethodref_info.class_index = readindex(classFile);
+                cs_entries[cs_index].info.interfacemethodref_info.name_and_type_index = readindex(classFile);
+                break;
+            case 8: // string
+                cs_entries[cs_index].info.string_info.string_index = readindex(classFile);
+                break;
+            case 3: // integer
+                break;
+            case 4: // float
+                break;
+            case 5: // long
+                break;
+            case 6: // double
+                break;
+            case 12: // name and type
+                cs_entries[cs_index].info.nameandtype_info.name_index = readindex(classFile);
+                cs_entries[cs_index].info.nameandtype_info.descriptor_index = readindex(classFile);
+                break;
+            case 1: // utf-8
+                cs_entries[cs_index].info.utf8_info.length = readindex(classFile);
+                cs_entries[cs_index].info.utf8_info.bytes 
+                    = readarray(cs_entries[cs_index].info.utf8_info.length, classFile);
+
+                break;
+            case 15: // method handle
+                break;
+            case 16: // method type
+                break;
+            case 18: // invoke dynamic
+                break;
+            default:
+                  printf("Error: #%d unknown constant pool type %d\n", 
+                          cs_index, cs_entries[cs_index].tag);   
+        }
+    }
     dumpConstPool(cs_count, cs_entries);
     fclose(classFile);
     return 0;
@@ -59,6 +113,100 @@ void dump(unsigned char* magic, int size)
 
 void dumpConstPool(short count, Const_Pool_Entry cs_entries[])
 {
-    
+    int i = 1;
+    for(i = 1; i < count; i++) 
+    {
+        dumpOneConstantPoolEntry(i, cs_entries);
+    }
 }
 
+unsigned short readindex(FILE* classFile)
+{
+    unsigned char temp[2];
+    fread(temp, 1, 2, classFile);    
+    return temp[0] * 16 + temp[1];
+}
+
+
+unsigned char* readarray(unsigned short size, FILE* classFile)
+{
+    //while create "size + 1"? --> the string in utf8_info are not null-terminated (jvmspeci 4.4.7)
+    unsigned char* p = malloc((size +1) * sizeof(unsigned char));
+    if (p == NULL) {
+        fprintf(stderr, "unable to allocate memory\n");
+        return NULL;
+    }
+    fread(p, 1, size, classFile);    
+    return p;
+}
+
+void dumpOneConstantPoolEntry(unsigned short current, Const_Pool_Entry* cs_entries) 
+{   
+    printf("\t #%d = ", current);
+    switch (cs_entries[current].tag) 
+        {
+            case 7: // class info
+                ;
+                unsigned short class_index = cs_entries[current].info.class_info.class_index;
+                printf("%s\t\t #%d \t\t // %s\n", "Class", 
+                        class_index, cs_entries[class_index].info.utf8_info.bytes); 
+                break;
+            case 9: // field ref
+                printf("%s\t\t #%d.#%d", "FieldRef",
+                        cs_entries[current].info.fieldref_info.class_index,
+                        cs_entries[current].info.fieldref_info.name_and_type_index); 
+                printf("\n");
+                break;
+            case 10: // method ref
+                printf("%s\t\t #%d.#%d", "MethodRef",
+                        cs_entries[current].info.methodref_info.class_index,
+                        cs_entries[current].info.methodref_info.name_and_type_index); 
+                printf("\n");
+                break;
+            case 11: // interface method ref
+                printf("%s\n", "InterfaceMethodRef"); 
+                break;
+            case 8: // string
+                printf("%s\t\t #%d", "String",
+                        cs_entries[current].info.string_info.string_index); 
+                printf("\n");
+                break;
+            case 3: // integer
+                printf("%s\n", "Integer"); 
+                break;
+            case 4: // float
+                printf("%s\n", "Float"); 
+                break;
+            case 5: // long
+                printf("%s\n", "Long"); 
+                break;
+            case 6: // double
+                printf("%s\n", "Double"); 
+                break;
+            case 12: // name and type
+                ;
+                unsigned short name_index = cs_entries[current].info.nameandtype_info.name_index;
+                unsigned short descriptor_index = cs_entries[current].info.nameandtype_info.descriptor_index; 
+                printf("%s\t #%d.#%d", "NameAndType",
+                        name_index,
+                        cs_entries[current].info.nameandtype_info.descriptor_index); 
+                printf("\t\t // %s:%s ", cs_entries[name_index].info.utf8_info.bytes, 
+                        cs_entries[descriptor_index].info.utf8_info.bytes);
+                printf("\n");
+                break;
+            case 1: // utf-8
+                printf("%s\t\t %s \n", "UTF8", cs_entries[current].info.utf8_info.bytes); 
+                break;
+            case 15: // method handle
+                printf("%s\n", "MethodHanle"); 
+                break;
+            case 16: // method type
+                printf("%s\n", "MethodType"); 
+                break;
+            case 18: // invoke dynamic
+                printf("%s\n", "InvokeDynamic"); 
+                break;
+            default:
+                  printf("Error: unknown constant pool type %d\n", cs_entries[current].tag);   
+        }
+}

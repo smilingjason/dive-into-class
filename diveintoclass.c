@@ -18,6 +18,9 @@ main(int argc, char * argv[])
        printf("Error: %s : %s \n", file_name, strerror(errno));
        return -1;
     }
+
+    long currentPosition = ftell(classFile);
+    printf("Start position: %ld\n", currentPosition);
     
     // parse magic number
     unsigned char magic[4];
@@ -150,7 +153,7 @@ main(int argc, char * argv[])
         method_infos[i].access_flag = readindex(classFile);
         method_infos[i].name_index = readindex(classFile);
         method_infos[i].descriptor_index = readindex(classFile);
-        printf("method #%d ", i + 1);
+        printf("    method #%d ", i + 1);
         printf("name = #%d ", method_infos[i].name_index);
         printf("\t // %s", cs_entries[method_infos[i].name_index].info.utf8_info.bytes);
         printf("\n");
@@ -160,6 +163,17 @@ main(int argc, char * argv[])
 
         printf("\n");
     }
+
+    //parse class attribute 
+    unsigned short attribute_count = readindex(classFile);
+    printf("Attribute count: %d \n", attribute_count);
+
+    int isEOF = feof(classFile);
+    printf("eof set?: %d \n", isEOF);
+    readmethodattribute(attribute_count, classFile);
+
+    currentPosition = ftell(classFile);
+    printf("Stop position: %ld\n", currentPosition);
 
     fclose(classFile);
     free(cs_entries);    

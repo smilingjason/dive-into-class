@@ -105,8 +105,36 @@ typedef struct _Const_Pool_Entry
     Const_Pool_Info info;
 } Const_Pool_Entry;
 
+typedef struct Attribute_Info
+{
+    unsigned short attribute_name_index;
+    unsigned int attribute_length;
+    unsigned char* attributes;
+} Attribute_Info;
+
+typedef struct Field_Info
+{
+    unsigned short access_flag;
+    unsigned short name_index;
+    unsigned short descriptor_index;
+    unsigned short attribute_count;
+    Attribute_Info* attribute_infos;
+
+} Field_Info;
+
+typedef struct Method_Info
+{
+    unsigned short access_flag;
+    unsigned short name_index;
+    unsigned short descriptor_index;
+    unsigned short attribute_count;
+    Attribute_Info* attribute_infos;
+} Method_Info;
+
 void dumpConstPool(short count, Const_Pool_Entry cs_entries[]);
 void dump(unsigned char magic[], int size);
 unsigned short readindex(FILE* classFile);
-unsigned char* readarray(unsigned short size, FILE* classFile);
+unsigned char* readarray(unsigned int size, FILE* classFile);
 void dumpOneConstantPoolEntry(unsigned short current, Const_Pool_Entry* cs_entries); 
+unsigned short* readshortarray(unsigned short size, FILE* classFile);
+Attribute_Info* readmethodattribute(unsigned short count, FILE* classFile);

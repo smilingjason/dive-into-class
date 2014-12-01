@@ -2,13 +2,14 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
-
+#include <math.h>
 #include "const_pool.h"
  
+Const_Pool_Entry* cs_entries;
+
 int
 main(int argc, char * argv[])
 {
-    printf("Hello world\n");
     const char* file_name = "./helloworld.class";
     FILE* classFile = fopen(file_name, "r");
     
@@ -39,11 +40,11 @@ main(int argc, char * argv[])
     // parse constant pool
     unsigned char cons_pool_count[2];
     fread(cons_pool_count, 1, 2, classFile);    
-    printf("Const Pool Count:");
+    printf("Const Pool Count: %d = ", cons_pool_count[0] * 16 + cons_pool_count[1]);
     dump(cons_pool_count, 2);
 
     unsigned short cs_count = cons_pool_count[0] * 16 + cons_pool_count[1];
-    Const_Pool_Entry cs_entries[cs_count + 1];
+    cs_entries = malloc((cs_count + 1) * sizeof(Const_Pool_Entry));
     int cs_index = 1;
     for (cs_index = 1; cs_index < cs_count ; cs_index++) 
     {
@@ -54,8 +55,11 @@ main(int argc, char * argv[])
                 cs_entries[cs_index].info.class_info.class_index = readindex(classFile);
                 break;
             case 9: // field ref
-                cs_entries[cs_index].info.fieldref_info.class_index = readindex(classFile);
-                cs_entries[cs_index].info.fieldref_info.name_and_type_index = readindex(classFile);
+                ;
+                unsigned short class_index = readindex(classFile);
+                cs_entries[cs_index].info.fieldref_info.class_index = class_index;
+                unsigned short nameandtype_index = readindex(classFile);
+                cs_entries[cs_index].info.fieldref_info.name_and_type_index = nameandtype_index;
                 break;
             case 10: // method ref
                 cs_entries[cs_index].info.methodref_info.class_index = readindex(classFile);
@@ -98,7 +102,67 @@ main(int argc, char * argv[])
         }
     }
     dumpConstPool(cs_count, cs_entries);
+    // parse access flag
+    unsigned short access_flag = readindex(classFile);
+    printf("Access Flag: %d \n", access_flag);
+
+    // parse this class
+    unsigned short this_class_index = readindex(classFile); 
+    printf("This class: #%d \n", this_class_index);
+
+    // parse super class
+    unsigned short super_class_index = readindex(classFile); 
+    printf("Super class: #%d \n", super_class_index);
+
+    // parse interface count
+    unsigned short interface_count = readindex(classFile); 
+    printf("Interface Count: #%d \n", interface_count);
+    
+    // parse interface indexes
+    unsigned short* interfaces;
+    if (interface_count > 0) 
+    {
+        interfaces = readshortarray(interface_count, classFile);
+        int i = 0;
+        for ( i = 0; i < interface_count; i++) 
+        {
+            printf("\t Interface #%d \n", interfaces[i]);
+        }
+    }
+
+    //parse field 
+    unsigned short field_count = readindex(classFile);
+    printf("Field count: %d \n", field_count);
+
+    Field_Info field_infos[field_count];
+    int i = 0;
+    for ( i = 0; i < field_count; i++)
+    {
+        //parse each field
+    }
+
+    //parse method
+    unsigned short method_count = readindex(classFile);
+    printf("Method count: %d \n", method_count);
+    Method_Info method_infos[method_count];
+    for(i = 0; i < method_count; i++) 
+    {
+        method_infos[i].access_flag = readindex(classFile);
+        method_infos[i].name_index = readindex(classFile);
+        method_infos[i].descriptor_index = readindex(classFile);
+        printf("method #%d ", i + 1);
+        printf("name = #%d ", method_infos[i].name_index);
+        printf("\t // %s", cs_entries[method_infos[i].name_index].info.utf8_info.bytes);
+        printf("\n");
+        method_infos[i].attribute_count = readindex(classFile);
+        method_infos[i].attribute_infos = readmethodattribute(
+                method_infos[i].attribute_count, classFile);
+
+        printf("\n");
+    }
+
     fclose(classFile);
+    free(cs_entries);    
     return 0;
 }
 
@@ -124,11 +188,20 @@ unsigned short readindex(FILE* classFile)
 {
     unsigned char temp[2];
     fread(temp, 1, 2, classFile);    
-    return temp[0] * 16 + temp[1];
+    return temp[0] * pow(2,8) + temp[1];
+}
+
+unsigned int readInt(FILE* classFile)
+{
+    unsigned char temp[4];
+    int read = fread(temp, 1, 4, classFile);    
+    int result = temp[0] * pow(2,24) + temp[1] * pow(2,16) + temp[2] * pow(2,8) + temp[3];
+    return result;
 }
 
 
-unsigned char* readarray(unsigned short size, FILE* classFile)
+
+unsigned char* readarray(unsigned int size, FILE* classFile)
 {
     //while create "size + 1"? --> the string in utf8_info are not null-terminated (jvmspeci 4.4.7)
     unsigned char* p = malloc((size +1) * sizeof(unsigned char));
@@ -137,6 +210,18 @@ unsigned char* readarray(unsigned short size, FILE* classFile)
         return NULL;
     }
     fread(p, 1, size, classFile);    
+    return p;
+}
+
+unsigned short* readshortarray(unsigned short size, FILE* classFile)
+{
+    //while create "size + 1"? --> the string in utf8_info are not null-terminated (jvmspeci 4.4.7)
+    unsigned short* p = malloc((size +1) * sizeof(unsigned short));
+    if (p == NULL) {
+        fprintf(stderr, "unable to allocate memory\n");
+        return NULL;
+    }
+    fread(p, 2, size, classFile);    
     return p;
 }
 
@@ -161,6 +246,16 @@ void dumpOneConstantPoolEntry(unsigned short current, Const_Pool_Entry* cs_entri
                 printf("%s\t\t #%d.#%d", "MethodRef",
                         cs_entries[current].info.methodref_info.class_index,
                         cs_entries[current].info.methodref_info.name_and_type_index); 
+                class_index = 
+                        cs_entries[current].info.methodref_info.class_index;
+                unsigned short nameandtype_index =
+                        cs_entries[current].info.methodref_info.name_and_type_index; 
+                unsigned short class_utf8_index = cs_entries[class_index].info.class_info.class_index;
+                printf("\t\t // %s", cs_entries[class_utf8_index].info.utf8_info.bytes);
+                unsigned short name_utf8_index = cs_entries[nameandtype_index].info.nameandtype_info.name_index;
+                unsigned short descriptor_utf8_index = cs_entries[nameandtype_index].info.nameandtype_info.descriptor_index;
+                printf(".%s:%s", cs_entries[name_utf8_index].info.utf8_info.bytes,
+                        cs_entries[descriptor_utf8_index].info.utf8_info.bytes);
                 printf("\n");
                 break;
             case 11: // interface method ref
@@ -209,4 +304,23 @@ void dumpOneConstantPoolEntry(unsigned short current, Const_Pool_Entry* cs_entri
             default:
                   printf("Error: unknown constant pool type %d\n", cs_entries[current].tag);   
         }
+}
+
+Attribute_Info* readmethodattribute(unsigned short count, FILE* classFile)
+{
+    printf ("\tAttribute count: %d\n", count);
+    Attribute_Info* p = malloc(count * sizeof(Attribute_Info));
+
+    int i = 0;
+    for( i = 0; i < count; i++) 
+    {
+        p->attribute_name_index = readindex(classFile);
+        printf("\tAttribute index: %d", p->attribute_name_index);
+        printf("\t // %s", cs_entries[p->attribute_name_index].info.utf8_info.bytes);
+        printf("\n");
+        p->attribute_length = readInt(classFile);
+        printf ("\tAttribute length: %d\n", p->attribute_length);
+        p->attributes = readarray(p->attribute_length, classFile);
+    }
+    return p;
 }

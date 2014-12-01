@@ -139,9 +139,20 @@ main(int argc, char * argv[])
 
     Field_Info field_infos[field_count];
     int i = 0;
-    for ( i = 0; i < field_count; i++)
+    for(i = 0; i < field_count; i++) 
     {
-        //parse each field
+        field_infos[i].access_flag = readindex(classFile);
+        field_infos[i].name_index = readindex(classFile);
+        field_infos[i].descriptor_index = readindex(classFile);
+        printf("    method #%d ", i + 1);
+        printf("name = #%d ", field_infos[i].name_index);
+        printf("\t // %s", cs_entries[field_infos[i].name_index].info.utf8_info.bytes);
+        printf("\n");
+        field_infos[i].attribute_count = readindex(classFile);
+        field_infos[i].attribute_infos = readmethodattribute(
+                field_infos[i].attribute_count, classFile);
+
+        printf("\n");
     }
 
     //parse method

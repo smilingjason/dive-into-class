@@ -19,4 +19,5 @@ if (CMAKE_SIZEOF_VOID_P EQUAL 8)
 endif ()
 
 add_definitions (-g)
+add_definitions (-std=c99)
 add_executable(dic diveintoclass.c)

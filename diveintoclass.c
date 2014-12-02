@@ -76,12 +76,28 @@ main(int argc, char * argv[])
                 cs_entries[cs_index].info.string_info.string_index = readindex(classFile);
                 break;
             case 3: // integer
+                fread(&cs_entries[cs_index].info.integer_info.integer_value, 1, 4, classFile);
                 break;
             case 4: // float
+                fread(&cs_entries[cs_index].info.float_info.float_value, 1, 4, classFile);
                 break;
             case 5: // long
+                fread(&cs_entries[cs_index].info.long_info.high, 1, 4, classFile);
+                fread(&cs_entries[cs_index].info.long_info.low, 1, 4, classFile);
+                // JVM SPEC: 
+                // If a CONSTANT_Long_info or CONSTANT_Double_info structure is the item
+                // in the constant_pool table at index n, then the next usable item in the pool is
+                // located at index n+2
+                cs_index++;
                 break;
             case 6: // double
+                fread(&cs_entries[cs_index].info.double_info.high, 1, 4, classFile);
+                fread(&cs_entries[cs_index].info.double_info.low, 1, 4, classFile);
+                // JVM Spec:
+                // If a CONSTANT_Long_info or CONSTANT_Double_info structure is the item
+                // in the constant_pool table at index n, then the next usable item in the pool is
+                // located at index n+2
+                cs_index++;
                 break;
             case 12: // name and type
                 cs_entries[cs_index].info.nameandtype_info.name_index = readindex(classFile);
@@ -94,10 +110,18 @@ main(int argc, char * argv[])
 
                 break;
             case 15: // method handle
+                fread(&cs_entries[cs_index].info.methodhandle_info.reference_kind, 1, 1, classFile);
+                fread(&cs_entries[cs_index].info.methodhandle_info.reference_index, 1, 2, classFile);
+
                 break;
             case 16: // method type
+                fread(&cs_entries[cs_index].info.methodtype_info.descriptor_index, 1, 1, classFile);
                 break;
             case 18: // invoke dynamic
+                cs_entries[cs_index].info.invokedynamic_info.bootstrap_method_attr_index =
+                    readindex(classFile);
+                cs_entries[cs_index].info.invokedynamic_info.name_and_type_index =
+                    readindex(classFile);
                 break;
             default:
                   printf("Error: #%d unknown constant pool type %d\n", 
@@ -206,6 +230,9 @@ void dumpConstPool(short count, Const_Pool_Entry cs_entries[])
     for(i = 1; i < count; i++) 
     {
         dumpOneConstantPoolEntry(i, cs_entries);
+        //Todo: bypass the one next to long or double
+        if (cs_entries[i].tag == 5 || cs_entries[i].tag == 6)
+            i++;
     }
 }
 
@@ -292,16 +319,44 @@ void dumpOneConstantPoolEntry(unsigned short current, Const_Pool_Entry* cs_entri
                 printf("\n");
                 break;
             case 3: // integer
-                printf("%s\n", "Integer"); 
+                printf("%s\t\t ", "Integer");
+                for(int i = 0; i < 4; i++)
+                {
+                    printf("%02X", cs_entries[current].info.integer_info.integer_value[i]);
+                }
+                printf("\n");
                 break;
-            case 4: // float
-                printf("%s\n", "Float"); 
+            case 4: // float   
+                printf("%s\t\t ", "Float");
+                for(int i = 0; i < 4; i++)
+                {
+                    printf("%02X", cs_entries[current].info.float_info.float_value[i]);
+                }
+                printf("\n");
                 break;
             case 5: // long
-                printf("%s\n", "Long"); 
+                printf("%s\t\t ", "Long");
+                for(int i = 0; i < 4; i++)
+                {
+                    printf("%02X", cs_entries[current].info.long_info.high[i]);
+                }
+                for(int i = 0; i < 4; i++)
+                {
+                    printf("%02X", cs_entries[current].info.long_info.low[i]);
+                }
+                printf("\n");
                 break;
             case 6: // double
-                printf("%s\n", "Double"); 
+                printf("%s\t\t ", "Double");
+                for(int i = 0; i < 4; i++)
+                {
+                    printf("%02X", cs_entries[current].info.double_info.high[i]);
+                }
+                for(int i = 0; i < 4; i++)
+                {
+                    printf("%02X", cs_entries[current].info.double_info.low[i]);
+                }
+                printf("\n");
                 break;
             case 12: // name and type
                 ;

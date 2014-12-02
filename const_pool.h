@@ -41,14 +41,14 @@ typedef struct Float_Info
 
 typedef struct Long_Info
 {
-    unsigned char long_value_high[4];
-    unsigned char long_value_low[4];
+    unsigned char high[4];
+    unsigned char low[4];
 } Long_Info ; 
 
 typedef struct Double_Info
 {
-    unsigned char double_value_high[4];
-    unsigned char double_value_low[4];
+    unsigned char high[4];
+    unsigned char low[4];
 } Double_Info ; 
 
 typedef struct NameAndType_Info

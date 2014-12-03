@@ -401,6 +401,40 @@ Attribute_Info* readmethodattribute(unsigned short count, FILE* classFile)
         p->attribute_length = readInt(classFile);
         printf ("\tAttribute length: %d\n", p->attribute_length);
         p->attributes = readarray(p->attribute_length, classFile);
+        //dump the code attribute
+        char* c = "Code";
+        if(strcmp(c, cs_entries[p->attribute_name_index].info.utf8_info.bytes) == 0) 
+        {
+            unsigned char* pattr= p->attributes;
+            unsigned short max_stacks = getShort(pattr);
+            pattr += 2; 
+            unsigned short max_locals = getShort(pattr);
+            pattr += 2; 
+            unsigned int code_length = getInt(pattr);
+            pattr += 4; 
+            printf("\t\t");
+
+            printf("stack = %d   local = %d code_length = %d\n", max_stacks, max_locals, code_length);
+            printf("\t\t");
+            for(int i = 0; i < code_length; i++) 
+            {
+                printf("%02X ", pattr[i]);
+            }
+            printf("\n");
+        }
     }
     return p;
+}
+
+unsigned short getShort(unsigned char* p)
+{
+    unsigned short result = 0;
+    result = p[0] * pow(2,8) + p[1];
+    return result;
+}
+unsigned int getInt(unsigned char* p)
+{
+    unsigned int result = 0;
+    result = p[0] * pow(2,24) + p[1] * pow(2, 16) + p[2] * pow(2, 8) + p[3];
+    return result;
 }

@@ -138,3 +138,5 @@ unsigned char* readarray(unsigned int size, FILE* classFile);
 void dumpOneConstantPoolEntry(unsigned short current, Const_Pool_Entry* cs_entries); 
 unsigned short* readshortarray(unsigned short size, FILE* classFile);
 Attribute_Info* readmethodattribute(unsigned short count, FILE* classFile);
+unsigned short getShort(unsigned char* p);
+unsigned int getInt(unsigned char* p);
